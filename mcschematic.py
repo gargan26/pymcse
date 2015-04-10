@@ -35,7 +35,7 @@ def load_schematic(filename):
 
     # data = gzip.decompress(rawbytes)
 
-    root_tag = nbt.load(rawbytes)
+    root_tag = nbt.read_compressed(rawbytes)
     ## return MCSchematic(root_tag=root_tag, filename=filename)
 
     raise IOError('Unable to load schematic data.')
