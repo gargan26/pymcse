@@ -35,6 +35,47 @@ TAG_LIST = 9
 TAG_COMPOUND = 10
 TAG_INT_ARRAY = 11
 
+unsigned_short = struct.Struct('>H')
+
+
+class DataInput(object):
+    '''
+    This class is a simple port for the Java DataInput class type.
+    '''
+
+    def __init__(self, data=b''):
+        if not isinstance(data, bytes):
+            raise TypeError
+        self.data = data
+        self.index = 0
+
+    def read_byte(self):
+        if self.index < len(self.data):
+            return_byte = self.data[self.index]
+            if return_byte > 127:
+                return_byte -= 256
+            self.index += 1
+            return return_byte
+        else:
+            raise EOFError
+
+    def read_unsigned_short(self):
+        if self.index + 1 < len(self.data):
+            retval, = unsigned_short.unpack_from(self.data, self.index)
+            self.index += 2
+            return retval
+        else:
+            raise EOFError
+
+    def read_utf(self):
+        utf_length = self.read_unsigned_short()
+        utf_data = self.data[self.index:self.index+utf_length]
+
+        if len(utf_data) < utf_length:
+            raise EOFError
+
+        return utf_data.decode('utf-8')
+
 
 def read_compressed(data):
     '''
@@ -46,23 +87,18 @@ def read_compressed(data):
 
     # Try to decompress gzip data
     try:
-        data = gzip.decompress(data)
+        data_input = DataInput(gzip.decompress(data))
     except Exception as e:
         log.error('Unable to decompress data stream. ({0}: {1})'.format(e.__class__.__name__, e))
         return None
 
-    var3 =
+    tag = data_input.read_byte()
 
-    # private static NBTBase func_152455_a(DataInput p_152455_0_, int p_152455_1_, NBTSizeTracker p_152455_2_) throws IOException
-    # {
-    #     byte var3 = p_152455_0_.readByte();
-    #
-    #     if (var3 == 0)
-    #     {
-    #         return new NBTTagEnd();
-    #     }
-    #     else
-    #     {
+    if tag == TAG_END:
+        # return new NBTTagEnd();
+        pass
+    else:
+        data_input.read_utf()
     #         p_152455_0_.readUTF();
     #         NBTBase var4 = NBTBase.createNewByType(var3);
     #
@@ -79,8 +115,7 @@ def read_compressed(data):
     #             var7.addCrashSection("Tag type", Byte.valueOf(var3));
     #             throw new ReportedException(var6);
     #         }
-    #     }
-    # }
+
 
 #     if isinstance(data, str):
 #         data = data.encode('utf-8')
