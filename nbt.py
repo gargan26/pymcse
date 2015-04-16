@@ -77,6 +77,36 @@ class DataInput(object):
         return utf_data.decode('utf-8')
 
 
+class NBTBase():
+    def create_new_by_type(self, tag):
+        if tag == TAG_END:
+            return NBTTagEnd()
+        elif tag == TAG_BYTE:
+            return NBTTagByte()
+        elif tag == TAG_SHORT:
+            return NBTTagShort()
+        elif tag == TAG_INT:
+            return NBTTagInt()
+        elif tag == TAG_LONG:
+            return NBTTagLong()
+        elif tag == TAG_FLOAT:
+            return NBTTagFloat()
+        elif tag == TAG_DOUBLE:
+            return NBTTagDouble()
+        elif tag == TAG_BYTE_ARRAY:
+            return NBTTagByteArray()
+        elif tag == TAG_STRING:
+            return NBTTagString()
+        elif tag == TAG_LIST:
+            return NBTTagList()
+        elif tag == TAG_COMPOUND:
+            return NBTTagCompound()
+        elif tag == TAG_INT_ARRAY:
+            return NBTTagIntArray()
+        else:
+            return None
+
+
 def read_compressed(data):
     '''
     Read NBT data from a GZip compressed data stream and return the root TAG_Compound.
@@ -96,17 +126,17 @@ def read_compressed(data):
 
     if tag == TAG_END:
         # return new NBTTagEnd();
-        pass
+        return NBTTagEnd()
     else:
         data_input.read_utf()
-    #         p_152455_0_.readUTF();
-    #         NBTBase var4 = NBTBase.createNewByType(var3);
-    #
-    #         try
-    #         {
-    #             var4.read(p_152455_0_, p_152455_1_, p_152455_2_);
-    #             return var4;
-    #         }
+        nbt_data = NBTBase.create_new_by_type(tag)
+
+        try:
+            nbt_data.read(data_input, 0, NBTSizeTracker.INFINITE)
+            return nbt_data
+        except Exception as e:
+            log.error('Error loading NBT data.')
+            raise
     #         catch (IOException var8)
     #         {
     #             CrashReport var6 = CrashReport.makeCrashReport(var8, "Loading NBT data");
