@@ -17,6 +17,7 @@
 import logging
 import gzip
 import struct
+import collections.abc
 # import numpy
 
 log = logging.getLogger(__name__)
@@ -35,18 +36,18 @@ TAG_LIST = 9
 TAG_COMPOUND = 10
 TAG_INT_ARRAY = 11
 
-# NBT Payload Structures
-nbt_signed_byte = struct.Struct('>b')
-nbt_unsigned_short = struct.Struct('>H')
-nbt_signed_short = struct.Struct('>h')
-nbt_signed_int = struct.Struct('>i')
-nbt_signed_long = struct.Struct('>q')
-nbt_float = struct.Struct('>f')
-nbt_double = struct.Struct('>d')
-
 
 class DataInput(object):
     '''This class is a simple port of the Java DataInput class type.'''
+
+    # NBT Payload Structures
+    nbt_signed_byte = struct.Struct('>b')
+    nbt_unsigned_short = struct.Struct('>H')
+    nbt_signed_short = struct.Struct('>h')
+    nbt_signed_int = struct.Struct('>i')
+    nbt_signed_long = struct.Struct('>q')
+    nbt_float = struct.Struct('>f')
+    nbt_double = struct.Struct('>d')
 
     def __init__(self, data=b''):
         if not isinstance(data, bytes):
@@ -56,7 +57,7 @@ class DataInput(object):
 
     def read_byte(self):
         if self.index < len(self.data):
-            retval, = nbt_signed_byte.unpack_from(self.data, self.index)
+            retval, = self.nbt_signed_byte.unpack_from(self.data, self.index)
             self.index += 1
             return retval
         else:
@@ -64,7 +65,7 @@ class DataInput(object):
 
     def read_short(self):
         if self.index + 2 <= len(self.data):
-            retval, = nbt_signed_short.unpack_from(self.data, self.index)
+            retval, = self.nbt_signed_short.unpack_from(self.data, self.index)
             self.index += 2
             return retval
         else:
@@ -72,7 +73,7 @@ class DataInput(object):
 
     def read_unsigned_short(self):
         if self.index + 2 <= len(self.data):
-            retval, = nbt_unsigned_short.unpack_from(self.data, self.index)
+            retval, = self.nbt_unsigned_short.unpack_from(self.data, self.index)
             self.index += 2
             return retval
         else:
@@ -80,7 +81,7 @@ class DataInput(object):
 
     def read_int(self):
         if self.index + 4 <= len(self.data):
-            retval, = nbt_signed_int.unpack_from(self.data, self.index)
+            retval, = self.nbt_signed_int.unpack_from(self.data, self.index)
             self.index += 4
             return retval
         else:
@@ -88,7 +89,7 @@ class DataInput(object):
 
     def read_long(self):
         if self.index + 8 <= len(self.data):
-            retval, = nbt_signed_long.unpack_from(self.data, self.index)
+            retval, = self.nbt_signed_long.unpack_from(self.data, self.index)
             self.index += 8
             return retval
         else:
@@ -96,7 +97,7 @@ class DataInput(object):
 
     def read_float(self):
         if self.index + 4 <= len(self.data):
-            retval, = nbt_float.unpack_from(self.data, self.index)
+            retval, = self.nbt_float.unpack_from(self.data, self.index)
             self.index += 4
             return retval
         else:
@@ -104,7 +105,7 @@ class DataInput(object):
 
     def read_double(self):
         if self.index + 8 <= len(self.data):
-            retval, = nbt_double.unpack_from(self.data, self.index)
+            retval, = self.nbt_double.unpack_from(self.data, self.index)
             self.index += 8
             return retval
         else:
@@ -130,14 +131,22 @@ class DataInput(object):
 
 
 class NBTTagBase(object):
-    __slots__ = ['name', 'data']
+    __slots__ = ['name', '_data']
 
     def __init__(self, data=None):
         self.name = ''
         self.data = data
 
+    @property
+    def data(self):
+        return self._data
 
-class NBTTagEnd():
+    @data.setter
+    def data(self, value):
+        self._data = value
+
+
+class NBTTagEnd(NBTTagBase):
     pass
 
 
@@ -147,12 +156,34 @@ class NBTTagByte(NBTTagBase):
     def read(self, data_input):
         self.data = data_input.read_byte()
 
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        if value and (value > 127 or value < -128):
+            raise ValueError('NBT Byte must be in range(-128, 128)')
+
+        self._data = value
+
 
 class NBTTagShort(NBTTagBase):
     __slots__ = []
 
     def read(self, data_input):
         self.data = data_input.read_short()
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        if value and (value > 32767 or value < -32768):
+            raise ValueError('NBT Short must be in range(-32768, 32768)')
+
+        self._data = value
 
 
 class NBTTagInt(NBTTagBase):
@@ -161,12 +192,34 @@ class NBTTagInt(NBTTagBase):
     def read(self, data_input):
         self.data = data_input.read_int()
 
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        if value and (value > 2147483647 or value < -2147483648):
+            raise ValueError('NBT Int must be in range(-2147483648, 2147483648)')
+
+        self._data = value
+
 
 class NBTTagLong(NBTTagBase):
     __slots__ = []
 
     def read(self, data_input):
         self.data = data_input.read_long()
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        if value and (value > 9223372036854775807 or value < -9223372036854775808):
+            raise ValueError('NBT Int must be in range(-9223372036854775808, 9223372036854775808)')
+
+        self._data = value
 
 
 class NBTTagFloat(NBTTagBase):
@@ -175,6 +228,17 @@ class NBTTagFloat(NBTTagBase):
     def read(self, data_input):
         self.data = data_input.read_float()
 
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        if value:
+            value = float(value)
+
+        self._data = value
+
 
 class NBTTagDouble(NBTTagBase):
     __slots__ = []
@@ -182,36 +246,75 @@ class NBTTagDouble(NBTTagBase):
     def read(self, data_input):
         self.data = data_input.read_double()
 
+    @property
+    def data(self):
+        return self._data
 
-class SignedByteList(list):
-    def __setitem__(self, key, value):
-        # Make sure the range is -128 to 127
-        value %= 256
+    @data.setter
+    def data(self, value):
+        if value:
+            value = float(value)
 
-        if value > 127:
-            value -= 256
+        self._data = value
 
-        super().__setitem__(key, value)
-
-    def append(self, p_object):
-        # Make sure the range is -128 to 127
-        p_object %= 256
-
-        if p_object > 127:
-            p_object -= 256
-
-        super().append(p_object)
+#
+# class SignedByteList(list):
+#     def __init__(self):
+#         super().__init__()
+#
+#     def __init__(self, iterable):
+#         super().clear()
+#
+#         for value in iterable:
+#             self.append(value)
+#
+#     def __setitem__(self, key, value):
+#         # Make sure the range is -128 to 127
+#         if not value or value > 127 or value < -128:
+#             raise ValueError('Signed byte must be in range(-128, 128)')
+#
+#         # value %= 256
+#         #
+#         # if value > 127:
+#         #     value -= 256
+#         #
+#         super().__setitem__(key, value)
+#
+#     def append(self, value):
+#         # Make sure the range is -128 to 127
+#         if not value or value > 127 or value < -128:
+#             raise ValueError('Signed byte must be in range(-128, 128)')
+#
+#         # value %= 256
+#         #
+#         # if value > 127:
+#         #     value -= 256
+#         super().append(value)
 
 
 class NBTTagByteArray(NBTTagBase):
     __slots__ = []
 
     def __init__(self):
-        super().__init__(data=SignedByteList())
+        super().__init__(data=[])
 
-    def read(self, data_input):
-        num_bytes = data_input.read_int()
-        self.data = data_input.read_fully(num_bytes)
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = value
+
+    # def __init__(self):
+    #     super().__init__(data=SignedByteList())
+    #
+    # def read(self, data_input):
+    #     self.data.clear()
+    #
+    #     num_bytes = data_input.read_int()
+    #     self.data = data_input.read_fully(num_bytes)
+    #
 
 
 class NBTTagString(NBTTagBase):
@@ -229,6 +332,7 @@ class NBTTagList(NBTTagBase):
         self.tag_type = None
 
     def read(self, data_input):
+        self.data.clear()
         self.tag_type = data_input.read_byte()
 
         for i in range(data_input.read_int()):
@@ -256,6 +360,10 @@ class NBTTagCompound(NBTTagBase):
 
 
 class NBTTagIntArray():
+    __slots__ = []
+
+    def __init__(self):
+        super().__init__(data=[])
     pass
 
 
