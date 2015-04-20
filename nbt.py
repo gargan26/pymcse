@@ -16,12 +16,12 @@
 
 import logging
 import gzip
-import collections
 import struct
-import numpy
+# import numpy
 
 log = logging.getLogger(__name__)
 
+# NBT Tag types
 TAG_END = 0
 TAG_BYTE = 1
 TAG_SHORT = 2
@@ -35,15 +35,18 @@ TAG_LIST = 9
 TAG_COMPOUND = 10
 TAG_INT_ARRAY = 11
 
-unsigned_short = struct.Struct('>H')
-signed_short = struct.Struct('>h')
-signed_int = struct.Struct('>i')
+# NBT Payload Structures
+nbt_signed_byte = struct.Struct('>b')
+nbt_unsigned_short = struct.Struct('>H')
+nbt_signed_short = struct.Struct('>h')
+nbt_signed_int = struct.Struct('>i')
+nbt_signed_long = struct.Struct('>q')
+nbt_float = struct.Struct('>f')
+nbt_double = struct.Struct('>d')
 
 
 class DataInput(object):
-    '''
-    This class is a simple port of the Java DataInput class type.
-    '''
+    '''This class is a simple port of the Java DataInput class type.'''
 
     def __init__(self, data=b''):
         if not isinstance(data, bytes):
@@ -53,34 +56,56 @@ class DataInput(object):
 
     def read_byte(self):
         if self.index < len(self.data):
-            return_byte = self.data[self.index]
-            if return_byte > 127:
-                return_byte -= 256
+            retval, = nbt_signed_byte.unpack_from(self.data, self.index)
             self.index += 1
-            return return_byte
+            return retval
         else:
             raise EOFError
 
     def read_short(self):
-        if self.index + 1 < len(self.data):
-            retval, = signed_short.unpack_from(self.data, self.index)
+        if self.index + 2 <= len(self.data):
+            retval, = nbt_signed_short.unpack_from(self.data, self.index)
             self.index += 2
             return retval
         else:
             raise EOFError
 
     def read_unsigned_short(self):
-        if self.index + 1 < len(self.data):
-            retval, = unsigned_short.unpack_from(self.data, self.index)
+        if self.index + 2 <= len(self.data):
+            retval, = nbt_unsigned_short.unpack_from(self.data, self.index)
             self.index += 2
             return retval
         else:
             raise EOFError
 
     def read_int(self):
-        if self.index + 3 < len(self.data):
-            retval, = signed_int.unpack_from(self.data, self.index)
+        if self.index + 4 <= len(self.data):
+            retval, = nbt_signed_int.unpack_from(self.data, self.index)
             self.index += 4
+            return retval
+        else:
+            raise EOFError
+
+    def read_long(self):
+        if self.index + 8 <= len(self.data):
+            retval, = nbt_signed_long.unpack_from(self.data, self.index)
+            self.index += 8
+            return retval
+        else:
+            raise EOFError
+
+    def read_float(self):
+        if self.index + 4 <= len(self.data):
+            retval, = nbt_float.unpack_from(self.data, self.index)
+            self.index += 4
+            return retval
+        else:
+            raise EOFError
+
+    def read_double(self):
+        if self.index + 8 <= len(self.data):
+            retval, = nbt_double.unpack_from(self.data, self.index)
+            self.index += 8
             return retval
         else:
             raise EOFError
@@ -95,1058 +120,161 @@ class DataInput(object):
 
         return utf_data.decode('utf-8')
 
-
-class NBTBase(object):
-    # public static final String[] NBT_TYPES = new String[] {"END", "BYTE", "SHORT", "INT", "LONG", "FLOAT", "DOUBLE", "BYTE[]", "STRING", "LIST", "COMPOUND", "INT[]"};
-
-    # /**
-    #  * Write the actual data contents of the tag, implemented in NBT extension classes
-    #  */
-    # abstract void write(DataOutput output) throws IOException;
-
-    # abstract void read(DataInput input, int depth, NBTSizeTracker sizeTracker) throws IOException;
-
-    # public abstract String toString();
-
-    # /**
-    #  * Gets the type byte for the tag.
-    #  */
-    # public abstract byte getId();
-
-    # /**
-    #  * Creates a new NBTBase object that corresponds with the passed in id.
-    #  */
-    @staticmethod
-    def create_new_by_type(tag):
-        if tag == TAG_END:
-            return NBTTagEnd()
-        elif tag == TAG_BYTE:
-            return NBTTagByte()
-        elif tag == TAG_SHORT:
-            return NBTTagShort()
-        elif tag == TAG_INT:
-            return NBTTagInt()
-        elif tag == TAG_LONG:
-            return NBTTagLong()
-        elif tag == TAG_FLOAT:
-            return NBTTagFloat()
-        elif tag == TAG_DOUBLE:
-            return NBTTagDouble()
-        elif tag == TAG_BYTE_ARRAY:
-            return NBTTagByteArray()
-        elif tag == TAG_STRING:
-            return NBTTagString()
-        elif tag == TAG_LIST:
-            return NBTTagList()
-        elif tag == TAG_COMPOUND:
-            return NBTTagCompound()
-        elif tag == TAG_INT_ARRAY:
-            return NBTTagIntArray()
+    def read_fully(self, length):
+        if self.index + length <= len(self.data):
+            retval = struct.unpack_from('>{0}b'.format(length), self.data, self.index)
+            self.index += length
+            return SignedByteList(retval)
         else:
-            return None
-
-    # /**
-    #  * Creates a clone of the tag.
-    #  */
-    # public abstract NBTBase copy();
-
-    # /**
-    #  * Return whether this compound has no tags.
-    #  */
-    # public boolean hasNoTags()
-    # {
-    #     return false;
-    # }
-
-    # public boolean equals(Object p_equals_1_)
-    # {
-    #     if (!(p_equals_1_ instanceof NBTBase))
-    #     {
-    #         return false;
-    #     }
-    #     else
-    #     {
-    #         NBTBase var2 = (NBTBase)p_equals_1_;
-    #         return this.getId() == var2.getId();
-    #     }
-    # }
-
-    # public int hashCode()
-    # {
-    #     return this.getId();
-    # }
-
-    # protected String getString()
-    # {
-    #     return this.toString();
-    # }
-
-    # public abstract static class NBTPrimitive extends NBTBase
-    # {
-    #     public abstract long getLong();
-    #
-    #     public abstract int getInt();
-    #
-    #     public abstract short getShort();
-    #
-    #     public abstract byte getByte();
-    #
-    #     public abstract double getDouble();
-    #
-    #     public abstract float getFloat();
-    # }
+            raise EOFError
 
 
-class NBTTagEnd(NBTBase):
-    # void read(DataInput input, int depth, NBTSizeTracker sizeTracker) throws IOException {}
-
-    # /**
-    #  * Write the actual data contents of the tag, implemented in NBT extension classes
-    #  */
-    # void write(DataOutput output) throws IOException {}
-
-    # /**
-    #  * Gets the type byte for the tag.
-    #  */
-    # public byte getId()
-    # {
-    #     return (byte)0;
-    # }
-
-    # public String toString()
-    # {
-    #     return "END";
-    # }
-
-    # /**
-    #  * Creates a clone of the tag.
-    #  */
-    # public NBTBase copy()
-    # {
-    #     return new NBTTagEnd();
-    # }
-    pass
-
-
-class NBTTagByte():
-    pass
-
-
-class NBTTagShort(NBTBase):
-    #public class NBTTagShort extends NBTBase.NBTPrimitive
+class NBTTagBase(object):
+    __slots__ = ['name', 'data']
 
     def __init__(self, data=None):
-        if data:
-            self.data = data
+        self.name = ''
+        self.data = data
 
-    # /**
-    #  * Write the actual data contents of the tag, implemented in NBT extension classes
-    #  */
-    # void write(DataOutput output) throws IOException
-    # {
-    #     output.writeShort(this.data);
-    # }
 
-    def read(self, data_input, depth):
+class NBTTagEnd():
+    pass
+
+
+class NBTTagByte(NBTTagBase):
+    __slots__ = []
+
+    def read(self, data_input):
+        self.data = data_input.read_byte()
+
+
+class NBTTagShort(NBTTagBase):
+    __slots__ = []
+
+    def read(self, data_input):
         self.data = data_input.read_short()
 
-    # /**
-    #  * Gets the type byte for the tag.
-    #  */
-    # public byte getId()
-    # {
-    #     return (byte)2;
-    # }
-    #
-    # public String toString()
-    # {
-    #     return "" + this.data + "s";
-    # }
-    #
-    # /**
-    #  * Creates a clone of the tag.
-    #  */
-    # public NBTBase copy()
-    # {
-    #     return new NBTTagShort(this.data);
-    # }
-    #
-    # public boolean equals(Object p_equals_1_)
-    # {
-    #     if (super.equals(p_equals_1_))
-    #     {
-    #         NBTTagShort var2 = (NBTTagShort)p_equals_1_;
-    #         return this.data == var2.data;
-    #     }
-    #     else
-    #     {
-    #         return false;
-    #     }
-    # }
-    #
-    # public int hashCode()
-    # {
-    #     return super.hashCode() ^ this.data;
-    # }
-    #
-    # public long getLong()
-    # {
-    #     return (long)this.data;
-    # }
-    #
-    # public int getInt()
-    # {
-    #     return this.data;
-    # }
-    #
-    # public short getShort()
-    # {
-    #     return this.data;
-    # }
-    #
-    # public byte getByte()
-    # {
-    #     return (byte)(this.data & 255);
-    # }
-    #
-    # public double getDouble()
-    # {
-    #     return (double)this.data;
-    # }
-    #
-    # public float getFloat()
-    # {
-    #     return (float)this.data;
-    # }
-    pass
+
+class NBTTagInt(NBTTagBase):
+    __slots__ = []
+
+    def read(self, data_input):
+        self.data = data_input.read_int()
 
 
-class NBTTagInt():
-    pass
+class NBTTagLong(NBTTagBase):
+    __slots__ = []
+
+    def read(self, data_input):
+        self.data = data_input.read_long()
 
 
-class NBTTagLong():
-    pass
+class NBTTagFloat(NBTTagBase):
+    __slots__ = []
+
+    def read(self, data_input):
+        self.data = data_input.read_float()
 
 
-class NBTTagFloat():
-    pass
+class NBTTagDouble(NBTTagBase):
+    __slots__ = []
+
+    def read(self, data_input):
+        self.data = data_input.read_double()
 
 
-class NBTTagDouble():
-    pass
+class SignedByteList(list):
+    def __setitem__(self, key, value):
+        # Make sure the range is -128 to 127
+        value %= 256
+
+        if value > 127:
+            value -= 256
+
+        super().__setitem__(key, value)
+
+    def append(self, p_object):
+        # Make sure the range is -128 to 127
+        p_object %= 256
+
+        if p_object > 127:
+            p_object -= 256
+
+        super().append(p_object)
 
 
-class NBTTagByteArray():
-    pass
+class NBTTagByteArray(NBTTagBase):
+    __slots__ = []
 
-
-class NBTTagString():
-    pass
-
-
-class NBTTagList(NBTBase):
     def __init__(self):
-        self.tag_type = TAG_END
-        self.tag_list = []
+        super().__init__(data=SignedByteList())
 
-#     private static final Logger LOGGER = LogManager.getLogger();
-#
-#     /**
-#      * Write the actual data contents of the tag, implemented in NBT extension classes
-#      */
-#     void write(DataOutput output) throws IOException
-#     {
-#         if (!this.tagList.isEmpty())
-#         {
-#             this.tagType = ((NBTBase)this.tagList.get(0)).getId();
-#         }
-#         else
-#         {
-#             this.tagType = 0;
-#         }
-#
-#         output.writeByte(this.tagType);
-#         output.writeInt(this.tagList.size());
-#
-#         for (int var2 = 0; var2 < this.tagList.size(); ++var2)
-#         {
-#             ((NBTBase)this.tagList.get(var2)).write(output);
-#         }
-#     }
-
-    def read(self, data_input, depth):
-        if depth > 512:
-            raise RuntimeError('Tried to read NBT tag with too high complexity, depth > 512')
-        else:
-            self.tag_type = data_input.read_byte()
-            self.tag_list.clear()
-
-            for i in range(data_input.read_int()):
-                nbt_tag = NBTBase.create_new_by_type(self.tag_type)
-                nbt_tag.read(data_input, depth+1)
-                self.tag_list.append(nbt_tag)
-
-#
-#     /**
-#      * Gets the type byte for the tag.
-#      */
-#     public byte getId()
-#     {
-#         return (byte)9;
-#     }
-#
-#     public String toString()
-#     {
-#         String var1 = "[";
-#         int var2 = 0;
-#
-#         for (Iterator var3 = this.tagList.iterator(); var3.hasNext(); ++var2)
-#         {
-#             NBTBase var4 = (NBTBase)var3.next();
-#             var1 = var1 + "" + var2 + ':' + var4 + ',';
-#         }
-#
-#         return var1 + "]";
-#     }
-#
-#     /**
-#      * Adds the provided tag to the end of the list. There is no check to verify this tag is of the same type as any
-#      * previous tag.
-#      */
-#     public void appendTag(NBTBase nbt)
-#     {
-#         if (this.tagType == 0)
-#         {
-#             this.tagType = nbt.getId();
-#         }
-#         else if (this.tagType != nbt.getId())
-#         {
-#             LOGGER.warn("Adding mismatching tag types to tag list");
-#             return;
-#         }
-#
-#         this.tagList.add(nbt);
-#     }
-#
-#     /**
-#      * Set the given index to the given tag
-#      */
-#     public void set(int idx, NBTBase nbt)
-#     {
-#         if (idx >= 0 && idx < this.tagList.size())
-#         {
-#             if (this.tagType == 0)
-#             {
-#                 this.tagType = nbt.getId();
-#             }
-#             else if (this.tagType != nbt.getId())
-#             {
-#                 LOGGER.warn("Adding mismatching tag types to tag list");
-#                 return;
-#             }
-#
-#             this.tagList.set(idx, nbt);
-#         }
-#         else
-#         {
-#             LOGGER.warn("index out of bounds to set tag in tag list");
-#         }
-#     }
-#
-#     /**
-#      * Removes a tag at the given index.
-#      */
-#     public NBTBase removeTag(int i)
-#     {
-#         return (NBTBase)this.tagList.remove(i);
-#     }
-#
-#     /**
-#      * Return whether this compound has no tags.
-#      */
-#     public boolean hasNoTags()
-#     {
-#         return this.tagList.isEmpty();
-#     }
-#
-#     /**
-#      * Retrieves the NBTTagCompound at the specified index in the list
-#      */
-#     public NBTTagCompound getCompoundTagAt(int i)
-#     {
-#         if (i >= 0 && i < this.tagList.size())
-#         {
-#             NBTBase var2 = (NBTBase)this.tagList.get(i);
-#             return var2.getId() == 10 ? (NBTTagCompound)var2 : new NBTTagCompound();
-#         }
-#         else
-#         {
-#             return new NBTTagCompound();
-#         }
-#     }
-#
-#     public int[] getIntArray(int i)
-#     {
-#         if (i >= 0 && i < this.tagList.size())
-#         {
-#             NBTBase var2 = (NBTBase)this.tagList.get(i);
-#             return var2.getId() == 11 ? ((NBTTagIntArray)var2).getIntArray() : new int[0];
-#         }
-#         else
-#         {
-#             return new int[0];
-#         }
-#     }
-#
-#     public double getDouble(int i)
-#     {
-#         if (i >= 0 && i < this.tagList.size())
-#         {
-#             NBTBase var2 = (NBTBase)this.tagList.get(i);
-#             return var2.getId() == 6 ? ((NBTTagDouble)var2).getDouble() : 0.0D;
-#         }
-#         else
-#         {
-#             return 0.0D;
-#         }
-#     }
-#
-#     public float getFloat(int i)
-#     {
-#         if (i >= 0 && i < this.tagList.size())
-#         {
-#             NBTBase var2 = (NBTBase)this.tagList.get(i);
-#             return var2.getId() == 5 ? ((NBTTagFloat)var2).getFloat() : 0.0F;
-#         }
-#         else
-#         {
-#             return 0.0F;
-#         }
-#     }
-#
-#     /**
-#      * Retrieves the tag String value at the specified index in the list
-#      */
-#     public String getStringTagAt(int i)
-#     {
-#         if (i >= 0 && i < this.tagList.size())
-#         {
-#             NBTBase var2 = (NBTBase)this.tagList.get(i);
-#             return var2.getId() == 8 ? var2.getString() : var2.toString();
-#         }
-#         else
-#         {
-#             return "";
-#         }
-#     }
-#
-#     /**
-#      * Get the tag at the given position
-#      */
-#     public NBTBase get(int idx)
-#     {
-#         return (NBTBase)(idx >= 0 && idx < this.tagList.size() ? (NBTBase)this.tagList.get(idx) : new NBTTagEnd());
-#     }
-#
-#     /**
-#      * Returns the number of tags in the list.
-#      */
-#     public int tagCount()
-#     {
-#         return this.tagList.size();
-#     }
-#
-#     /**
-#      * Creates a clone of the tag.
-#      */
-#     public NBTBase copy()
-#     {
-#         NBTTagList var1 = new NBTTagList();
-#         var1.tagType = this.tagType;
-#         Iterator var2 = this.tagList.iterator();
-#
-#         while (var2.hasNext())
-#         {
-#             NBTBase var3 = (NBTBase)var2.next();
-#             NBTBase var4 = var3.copy();
-#             var1.tagList.add(var4);
-#         }
-#
-#         return var1;
-#     }
-#
-#     public boolean equals(Object p_equals_1_)
-#     {
-#         if (super.equals(p_equals_1_))
-#         {
-#             NBTTagList var2 = (NBTTagList)p_equals_1_;
-#
-#             if (this.tagType == var2.tagType)
-#             {
-#                 return this.tagList.equals(var2.tagList);
-#             }
-#         }
-#
-#         return false;
-#     }
-#
-#     public int hashCode()
-#     {
-#         return super.hashCode() ^ this.tagList.hashCode();
-#     }
-#
-#     public int getTagType()
-#     {
-#         return this.tagType;
-#     }
+    def read(self, data_input):
+        num_bytes = data_input.read_int()
+        self.data = data_input.read_fully(num_bytes)
 
 
-class NBTTagCompound(NBTBase):
+class NBTTagString(NBTTagBase):
+    __slots__ = []
+
+    def read(self, data_input):
+        self.data = data_input.read_utf()
+
+
+class NBTTagList(NBTTagBase):
+    __slots__ = 'tag_type'
+
     def __init__(self):
-        self.tagMap = {}
-    # private static final Logger logger = LogManager.getLogger();
-    #
-    # /**
-    #  * The key-value pairs for the tag. Each key is a UTF string, each value is a tag.
-    #  */
-    # private Map tagMap = Maps.newHashMap();
-    #
-    # /**
-    #  * Write the actual data contents of the tag, implemented in NBT extension classes
-    #  */
-    # void write(DataOutput output) throws IOException
-    # {
-    #     Iterator var2 = this.tagMap.keySet().iterator();
-    #
-    #     while (var2.hasNext())
-    #     {
-    #         String var3 = (String)var2.next();
-    #         NBTBase var4 = (NBTBase)this.tagMap.get(var3);
-    #         writeEntry(var3, var4, output);
-    #     }
-    #
-    #     output.writeByte(0);
-    # }
+        super().__init__(data=[])
+        self.tag_type = None
 
-    def read(self, data_input, depth):
-        # void read(DataInput input, int depth, NBTSizeTracker sizeTracker) throws IOException
-        # {
-        if depth > 512:
-            raise RuntimeError('Tried to read NBT tag with too high complexity, depth > 512')
-        else:
-            self.tagMap.clear()
+    def read(self, data_input):
+        self.tag_type = data_input.read_byte()
 
-            while True:
-                nbt_tag_type = self.read_type(data_input)
+        for i in range(data_input.read_int()):
+            nbt_tag = nbt_tag_classes[self.tag_type]()
+            nbt_tag.read(data_input)
+            self.data.append(nbt_tag.data)
 
-                if nbt_tag_type == TAG_END:
-                    break
 
-                nbt_tag_name = self.read_key(data_input)
-                nbt_tag_payload = self.read_nbt(nbt_tag_type, nbt_tag_name, data_input, depth+1)
-                self.tagMap[nbt_tag_name] = nbt_tag_payload
+class NBTTagCompound(NBTTagBase):
+    __slots__ = []
 
-    # /**
-    #  * Gets a set with the names of the keys in the tag compound.
-    #  */
-    # public Set getKeySet()
-    # {
-    #     return this.tagMap.keySet();
-    # }
-    #
-    # /**
-    #  * Gets the type byte for the tag.
-    #  */
-    # public byte getId()
-    # {
-    #     return (byte)10;
-    # }
-    #
-    # /**
-    #  * Stores the given tag into the map with the given string key. This is mostly used to store tag lists.
-    #  */
-    # public void setTag(String key, NBTBase value)
-    # {
-    #     this.tagMap.put(key, value);
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagByte with the given byte value into the map with the given string key.
-    #  */
-    # public void setByte(String key, byte value)
-    # {
-    #     this.tagMap.put(key, new NBTTagByte(value));
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagShort with the given short value into the map with the given string key.
-    #  */
-    # public void setShort(String key, short value)
-    # {
-    #     this.tagMap.put(key, new NBTTagShort(value));
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagInt with the given integer value into the map with the given string key.
-    #  */
-    # public void setInteger(String key, int value)
-    # {
-    #     this.tagMap.put(key, new NBTTagInt(value));
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagLong with the given long value into the map with the given string key.
-    #  */
-    # public void setLong(String key, long value)
-    # {
-    #     this.tagMap.put(key, new NBTTagLong(value));
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagFloat with the given float value into the map with the given string key.
-    #  */
-    # public void setFloat(String key, float value)
-    # {
-    #     this.tagMap.put(key, new NBTTagFloat(value));
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagDouble with the given double value into the map with the given string key.
-    #  */
-    # public void setDouble(String key, double value)
-    # {
-    #     this.tagMap.put(key, new NBTTagDouble(value));
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagString with the given string value into the map with the given string key.
-    #  */
-    # public void setString(String key, String value)
-    # {
-    #     this.tagMap.put(key, new NBTTagString(value));
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagByteArray with the given array as data into the map with the given string key.
-    #  */
-    # public void setByteArray(String key, byte[] value)
-    # {
-    #     this.tagMap.put(key, new NBTTagByteArray(value));
-    # }
-    #
-    # /**
-    #  * Stores a new NBTTagIntArray with the given array as data into the map with the given string key.
-    #  */
-    # public void setIntArray(String key, int[] value)
-    # {
-    #     this.tagMap.put(key, new NBTTagIntArray(value));
-    # }
-    #
-    # /**
-    #  * Stores the given boolean value as a NBTTagByte, storing 1 for true and 0 for false, using the given string key.
-    #  */
-    # public void setBoolean(String key, boolean value)
-    # {
-    #     this.setByte(key, (byte)(value ? 1 : 0));
-    # }
-    #
-    # /**
-    #  * gets a generic tag with the specified name
-    #  */
-    # public NBTBase getTag(String key)
-    # {
-    #     return (NBTBase)this.tagMap.get(key);
-    # }
-    #
-    # /**
-    #  * Get the Type-ID for the entry with the given key
-    #  */
-    # public byte getTagType(String key)
-    # {
-    #     NBTBase var2 = (NBTBase)this.tagMap.get(key);
-    #     return var2 != null ? var2.getId() : 0;
-    # }
-    #
-    # /**
-    #  * Returns whether the given string has been previously stored as a key in the map.
-    #  */
-    # public boolean hasKey(String key)
-    # {
-    #     return this.tagMap.containsKey(key);
-    # }
-    #
-    # public boolean hasKey(String key, int type)
-    # {
-    #     byte var3 = this.getTagType(key);
-    #
-    #     if (var3 == type)
-    #     {
-    #         return true;
-    #     }
-    #     else if (type != 99)
-    #     {
-    #         if (var3 > 0)
-    #         {
-    #             ;
-    #         }
-    #
-    #         return false;
-    #     }
-    #     else
-    #     {
-    #         return var3 == 1 || var3 == 2 || var3 == 3 || var3 == 4 || var3 == 5 || var3 == 6;
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a byte value using the specified key, or 0 if no such key was stored.
-    #  */
-    # public byte getByte(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 99) ? 0 : ((NBTBase.NBTPrimitive)this.tagMap.get(key)).getByte();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         return (byte)0;
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a short value using the specified key, or 0 if no such key was stored.
-    #  */
-    # public short getShort(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 99) ? 0 : ((NBTBase.NBTPrimitive)this.tagMap.get(key)).getShort();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         return (short)0;
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves an integer value using the specified key, or 0 if no such key was stored.
-    #  */
-    # public int getInteger(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 99) ? 0 : ((NBTBase.NBTPrimitive)this.tagMap.get(key)).getInt();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         return 0;
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a long value using the specified key, or 0 if no such key was stored.
-    #  */
-    # public long getLong(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 99) ? 0L : ((NBTBase.NBTPrimitive)this.tagMap.get(key)).getLong();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         return 0L;
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a float value using the specified key, or 0 if no such key was stored.
-    #  */
-    # public float getFloat(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 99) ? 0.0F : ((NBTBase.NBTPrimitive)this.tagMap.get(key)).getFloat();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         return 0.0F;
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a double value using the specified key, or 0 if no such key was stored.
-    #  */
-    # public double getDouble(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 99) ? 0.0D : ((NBTBase.NBTPrimitive)this.tagMap.get(key)).getDouble();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         return 0.0D;
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a string value using the specified key, or an empty string if no such key was stored.
-    #  */
-    # public String getString(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 8) ? "" : ((NBTBase)this.tagMap.get(key)).getString();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         return "";
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a byte array using the specified key, or a zero-length array if no such key was stored.
-    #  */
-    # public byte[] getByteArray(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 7) ? new byte[0] : ((NBTTagByteArray)this.tagMap.get(key)).getByteArray();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         throw new ReportedException(this.createCrashReport(key, 7, var3));
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves an int array using the specified key, or a zero-length array if no such key was stored.
-    #  */
-    # public int[] getIntArray(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 11) ? new int[0] : ((NBTTagIntArray)this.tagMap.get(key)).getIntArray();
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         throw new ReportedException(this.createCrashReport(key, 11, var3));
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a NBTTagCompound subtag matching the specified key, or a new empty NBTTagCompound if no such key was
-    #  * stored.
-    #  */
-    # public NBTTagCompound getCompoundTag(String key)
-    # {
-    #     try
-    #     {
-    #         return !this.hasKey(key, 10) ? new NBTTagCompound() : (NBTTagCompound)this.tagMap.get(key);
-    #     }
-    #     catch (ClassCastException var3)
-    #     {
-    #         throw new ReportedException(this.createCrashReport(key, 10, var3));
-    #     }
-    # }
-    #
-    # /**
-    #  * Gets the NBTTagList object with the given name. Args: name, NBTBase type
-    #  */
-    # public NBTTagList getTagList(String key, int type)
-    # {
-    #     try
-    #     {
-    #         if (this.getTagType(key) != 9)
-    #         {
-    #             return new NBTTagList();
-    #         }
-    #         else
-    #         {
-    #             NBTTagList var3 = (NBTTagList)this.tagMap.get(key);
-    #             return var3.tagCount() > 0 && var3.getTagType() != type ? new NBTTagList() : var3;
-    #         }
-    #     }
-    #     catch (ClassCastException var4)
-    #     {
-    #         throw new ReportedException(this.createCrashReport(key, 9, var4));
-    #     }
-    # }
-    #
-    # /**
-    #  * Retrieves a boolean value using the specified key, or false if no such key was stored. This uses the getByte
-    #  * method.
-    #  */
-    # public boolean getBoolean(String key)
-    # {
-    #     return this.getByte(key) != 0;
-    # }
-    #
-    # /**
-    #  * Remove the specified tag.
-    #  */
-    # public void removeTag(String key)
-    # {
-    #     this.tagMap.remove(key);
-    # }
-    #
-    # public String toString()
-    # {
-    #     String var1 = "{";
-    #     String var3;
-    #
-    #     for (Iterator var2 = this.tagMap.keySet().iterator(); var2.hasNext(); var1 = var1 + var3 + ':' + this.tagMap.get(var3) + ',')
-    #     {
-    #         var3 = (String)var2.next();
-    #     }
-    #
-    #     return var1 + "}";
-    # }
-    #
-    # /**
-    #  * Return whether this compound has no tags.
-    #  */
-    # public boolean hasNoTags()
-    # {
-    #     return this.tagMap.isEmpty();
-    # }
-    #
-    # /**
-    #  * Create a crash report which indicates a NBT read error.
-    #  */
-    # private CrashReport createCrashReport(final String key, final int expectedType, ClassCastException ex)
-    # {
-    #     CrashReport var4 = CrashReport.makeCrashReport(ex, "Reading NBT data");
-    #     CrashReportCategory var5 = var4.makeCategoryDepth("Corrupt NBT tag", 1);
-    #     var5.addCrashSectionCallable("Tag type found", new Callable()
-    #     {
-    #         private static final String __OBFID = "CL_00001216";
-    #         public String call()
-    #         {
-    #             return NBTBase.NBT_TYPES[((NBTBase)NBTTagCompound.this.tagMap.get(key)).getId()];
-    #         }
-    #     });
-    #     var5.addCrashSectionCallable("Tag type expected", new Callable()
-    #     {
-    #         private static final String __OBFID = "CL_00001217";
-    #         public String call()
-    #         {
-    #             return NBTBase.NBT_TYPES[expectedType];
-    #         }
-    #     });
-    #     var5.addCrashSection("Tag name", key);
-    #     return var4;
-    # }
-    #
-    # /**
-    #  * Creates a clone of the tag.
-    #  */
-    # public NBTBase copy()
-    # {
-    #     NBTTagCompound var1 = new NBTTagCompound();
-    #     Iterator var2 = this.tagMap.keySet().iterator();
-    #
-    #     while (var2.hasNext())
-    #     {
-    #         String var3 = (String)var2.next();
-    #         var1.setTag(var3, ((NBTBase)this.tagMap.get(var3)).copy());
-    #     }
-    #
-    #     return var1;
-    # }
-    #
-    # public boolean equals(Object p_equals_1_)
-    # {
-    #     if (super.equals(p_equals_1_))
-    #     {
-    #         NBTTagCompound var2 = (NBTTagCompound)p_equals_1_;
-    #         return this.tagMap.entrySet().equals(var2.tagMap.entrySet());
-    #     }
-    #     else
-    #     {
-    #         return false;
-    #     }
-    # }
-    #
-    # public int hashCode()
-    # {
-    #     return super.hashCode() ^ this.tagMap.hashCode();
-    # }
-    #
-    # private static void writeEntry(String name, NBTBase data, DataOutput output) throws IOException
-    # {
-    #     output.writeByte(data.getId());
-    #
-    #     if (data.getId() != 0)
-    #     {
-    #         output.writeUTF(name);
-    #         data.write(output);
-    #     }
-    # }
-    #
+    def __init__(self):
+        super().__init__(data=[])
 
-    def read_type(self, data_input):
-        return data_input.read_byte()
+    def read(self, data_input):
+        self.data.clear()
 
-    def read_key(self, data_input):
-        return data_input.read_utf()
+        while True:
+            nbt_tag = read_nbt_tag(data_input)
 
-    def read_nbt(self, nbt_tag_type, nbt_tag_name, data_input, depth):
-        nbt_tag = NBTBase.create_new_by_type(nbt_tag_type)
+            if isinstance(nbt_tag, NBTTagEnd):
+                break
 
-        try:
-            nbt_tag.read(data_input, depth)
-            return nbt_tag
-        except Exception:
-            log.error('Error loading NBT data')
-            raise
-        # catch (IOException var9)
-        # {
-        #     CrashReport var7 = CrashReport.makeCrashReport(var9, "Loading NBT data");
-        #     CrashReportCategory var8 = var7.makeCategory("NBT Tag");
-        #     var8.addCrashSection("Tag name", key);
-        #     var8.addCrashSection("Tag type", Byte.valueOf(id));
-        #     throw new ReportedException(var7);
-        # }
-
-    # /**
-    #  * Merges this NBTTagCompound with the given compound. Any sub-compounds are merged using the same methods, other
-    #  * types of tags are overwritten from the given compound.
-    #  */
-    # public void merge(NBTTagCompound other)
-    # {
-    #     Iterator var2 = other.tagMap.keySet().iterator();
-    #
-    #     while (var2.hasNext())
-    #     {
-    #         String var3 = (String)var2.next();
-    #         NBTBase var4 = (NBTBase)other.tagMap.get(var3);
-    #
-    #         if (var4.getId() == 10)
-    #         {
-    #             if (this.hasKey(var3, 10))
-    #             {
-    #                 NBTTagCompound var5 = this.getCompoundTag(var3);
-    #                 var5.merge((NBTTagCompound)var4);
-    #             }
-    #             else
-    #             {
-    #                 this.setTag(var3, var4.copy());
-    #             }
-    #         }
-    #         else
-    #         {
-    #             this.setTag(var3, var4.copy());
-    #         }
-    #     }
-    # }
+            self.data.append(nbt_tag)
 
 
 class NBTTagIntArray():
     pass
 
 
-def read_compressed(data):
+nbt_tag_classes = [NBTTagEnd, NBTTagByte, NBTTagShort, NBTTagInt, NBTTagLong, NBTTagFloat, NBTTagDouble,
+                   NBTTagByteArray, NBTTagString, NBTTagList, NBTTagCompound, NBTTagIntArray]
+
+
+def read_nbt_tag(data_input):
+    nbt_tag_type = data_input.read_byte()
+
+    nbt_tag = nbt_tag_classes[nbt_tag_type]()
+    if nbt_tag_type != TAG_END:
+        nbt_tag.name = data_input.read_utf()
+        nbt_tag.read(data_input)
+
+    return nbt_tag
+
+
+def read_nbt(filename):
     '''
     Read NBT data from a GZip compressed data stream and return the root TAG_Compound.
 
@@ -1154,56 +282,28 @@ def read_compressed(data):
     Return type: NBTTagCompound
     '''
 
+    with open(filename, 'rb') as f:
+        data = f.read()
+
     # Try to decompress gzip data
     try:
         data_input = DataInput(gzip.decompress(data))
-    except Exception as e:
-        log.error('Unable to decompress data stream. ({0}: {1})'.format(e.__class__.__name__, e))
-        return None
+    except:
+        log.warning('Unable to decompress data stream. Assuming file is uncompressed.')
+        data_input = DataInput(data)
 
     nbt_tag_type = data_input.read_byte()
 
-    if nbt_tag_type == TAG_END:
-        return NBTTagEnd()
-    else:
-        data_input.read_utf()
-        nbt_data = NBTBase.create_new_by_type(nbt_tag_type)
+    if nbt_tag_type != TAG_COMPOUND:
+        log.error('Root tag must be a named compound tag.')
+        return None
 
-        try:
-            #nbt_data.read(data_input, 0, NBTSizeTracker.INFINITE)
-            nbt_data.read(data_input, 0)
-            return nbt_data
-        except Exception:
-            log.error('Error loading NBT data.')
-            raise
-    #         catch (IOException var8)
-    #         {
-    #             CrashReport var6 = CrashReport.makeCrashReport(var8, "Loading NBT data");
-    #             CrashReportCategory var7 = var6.makeCategory("NBT Tag");
-    #             var7.addCrashSection("Tag name", "[UNNAMED TAG]");
-    #             var7.addCrashSection("Tag type", Byte.valueOf(var3));
-    #             throw new ReportedException(var6);
-    #         }
+    nbt_tag = NBTTagCompound()
+    nbt_tag.name = data_input.read_utf()
+    nbt_tag.read(data_input)
 
+    return nbt_tag
 
-#     if isinstance(data, str):
-#         data = data.encode('utf-8')
-#
-#     if not len(data):
-#         raise RuntimeError('NBT data is empty.')
-#
-#     tag_type = data[0]
-#     if tag_type != TAG_COMPOUND:
-#         magic = data[:4]
-#         raise RuntimeError('NBT root TAG_Compound missing or invalid. (NBT data starts with "{0}" (0x{1:X}))'.format(magic.decode('utf-8'), int.from_bytes(magic, 'little')))
-#
-#     nbt_data = NBTData(data, offset=1)
-#
-#     tag_name = load_string(nbt_data)
-#     tag = TAG_Compound.load_from(nbt_data)
-#     tag.name = tag_name
-#
-#     return tag
 
 
 # TAG_END = 0

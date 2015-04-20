@@ -22,20 +22,27 @@ log = logging.getLogger(__name__)
 
 
 def load_schematic(filename):
-    log.info('Opening ' + filename)
+    if not filename:
+        log.error('Filename not given.')
+    elif not os.path.exists(filename):
+        log.error('File not found: {0}'.format(filename))
 
-    if not filename or not os.path.exists(filename):
-        raise IOError('File not found: ' + filename)
+    log.info('Opening {0}'.format(filename))
 
-    with open(filename, 'rb') as f:
-        rawbytes = f.read()
+    root_tag = nbt.read_nbt(filename)
 
-    if len(rawbytes) < 4:
-        raise ValueError('{0} is too small! ({1})'.format(filename, len(rawbytes)))
-
-    # data = gzip.decompress(rawbytes)
-
-    root_tag = nbt.read_compressed(rawbytes)
+    # if not filename or not os.path.exists(filename):
+    #     raise IOError('File not found: ' + filename)
+    #
+    # with open(filename, 'rb') as f:
+    #     rawbytes = f.read()
+    #
+    # if len(rawbytes) < 4:
+    #     raise ValueError('{0} is too small! ({1})'.format(filename, len(rawbytes)))
+    #
+    # # data = gzip.decompress(rawbytes)
+    #
+    # root_tag = nbt.read_compressed(rawbytes)
     ## return MCSchematic(root_tag=root_tag, filename=filename)
 
     raise IOError('Unable to load schematic data.')
