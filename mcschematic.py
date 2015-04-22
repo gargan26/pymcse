@@ -31,18 +31,4 @@ def load_schematic(filename):
 
     root_tag = nbt.read_nbt(filename)
 
-    # if not filename or not os.path.exists(filename):
-    #     raise IOError('File not found: ' + filename)
-    #
-    # with open(filename, 'rb') as f:
-    #     rawbytes = f.read()
-    #
-    # if len(rawbytes) < 4:
-    #     raise ValueError('{0} is too small! ({1})'.format(filename, len(rawbytes)))
-    #
-    # # data = gzip.decompress(rawbytes)
-    #
-    # root_tag = nbt.read_compressed(rawbytes)
-    ## return MCSchematic(root_tag=root_tag, filename=filename)
-
-    raise IOError('Unable to load schematic data.')
+    #raise IOError('Unable to load schematic data.')
