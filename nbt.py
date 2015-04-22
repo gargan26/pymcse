@@ -18,7 +18,7 @@ import logging
 import gzip
 import struct
 import array
-# import collections.abc
+import collections.abc
 # import numpy
 
 log = logging.getLogger(__name__)
@@ -211,19 +211,18 @@ class NBTTagByteArray(NBTTagBase):
     __slots__ = ()
 
     def __init__(self):
-        # super().__init__(data=SignedByteArray())
         super().__init__(data=array.array('b'))
 
     def read(self, data_input):
         num_bytes = data_input.read_int()
-        self.data = array.array('b', data_input.read_fully(num_bytes))
+        self._data = array.array('b', data_input.read_fully(num_bytes))
 
 
 class NBTTagString(NBTTagBase):
     __slots__ = ()
 
     def read(self, data_input):
-        self.data = data_input.read_utf()
+        self._data = data_input.read_utf()
 
 
 class NBTTagList(NBTTagBase):
@@ -234,23 +233,23 @@ class NBTTagList(NBTTagBase):
         super().__init__(data=[])
 
     def read(self, data_input):
-        self.data.clear()
+        self._data.clear()
         self.tag_type = data_input.read_byte()
 
         for i in range(data_input.read_int()):
             nbt_tag = nbt_tag_classes[self.tag_type]()
             nbt_tag.read(data_input)
-            self.data.append(nbt_tag.data)
+            self._data.append(nbt_tag.data)
 
 
-class NBTTagCompound(NBTTagBase):
+class NBTTagCompound(NBTTagBase, collections.abc.MutableMapping):
     __slots__ = ()
 
     def __init__(self):
         super().__init__(data=[])
 
     def read(self, data_input):
-        self.data.clear()
+        self._data.clear()
 
         while True:
             nbt_tag = read_nbt_tag(data_input)
@@ -258,10 +257,26 @@ class NBTTagCompound(NBTTagBase):
             if isinstance(nbt_tag, NBTTagEnd):
                 break
 
-            self.data.append(nbt_tag)
+            self._data.append(nbt_tag)
+
+    # collections.abc.MutableMapping abstract methods
+    def __getitem__(self, item):
+        pass
+
+    def __setitem__(self, key, value):
+        pass
+
+    def __delitem__(self, key):
+        pass
+
+    def __iter__(self):
+        pass
+
+    def __len__(self):
+        return self.data.__len__()
 
 
-class NBTTagIntArray():
+class NBTTagIntArray(NBTTagBase):
     __slots__ = ()
 
     def __init__(self):
@@ -269,10 +284,10 @@ class NBTTagIntArray():
 
     def read(self, data_input):
         length = data_input.read_int()
-        self.data = array.array('i')*length
+        self._data = array.array('i')*length
 
         for i in range(0, length):
-            self.data[i] = data_input.read_int()
+            self._data[i] = data_input.read_int()
 
 
 nbt_tag_classes = [NBTTagEnd, NBTTagByte, NBTTagShort, NBTTagInt, NBTTagLong, NBTTagFloat, NBTTagDouble,

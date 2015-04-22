@@ -29,6 +29,21 @@ def load_schematic(filename):
 
     log.info('Opening {0}'.format(filename))
 
-    root_tag = nbt.read_nbt(filename)
+    try:
+        root_tag = nbt.read_nbt(filename)
+        if root_tag.name.lower() == 'schematic':
+            return MCSchematic(root_tag=root_tag)
+        else:
+            raise IOError('NBT data does not conform to Schematic standards.')
+    except:
+        raise IOError('Unable to load schematic data.')
 
-    #raise IOError('Unable to load schematic data.')
+
+class MCSchematic(object):
+    def __init__(self, root_tag=None):
+        if root_tag is not None:
+            self.root_tag = root_tag
+
+    @property
+    def width(self):
+        return self.root_tag.data
