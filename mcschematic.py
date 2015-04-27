@@ -46,4 +46,4 @@ class MCSchematic(object):
 
     @property
     def width(self):
-        return self.root_tag.data
+        return self.root_tag['Width']

@@ -260,14 +260,42 @@ class NBTTagCompound(NBTTagBase, collections.abc.MutableMapping):
             self._data.append(nbt_tag)
 
     # collections.abc.MutableMapping abstract methods
-    def __getitem__(self, item):
-        pass
+    def __getitem__(self, key):
+        for tag in self._data:
+            if tag.name == key:
+                return tag.data
+        raise KeyError('Key {0} not found.'.format(key))
 
-    def __setitem__(self, key, value):
-        pass
+    def __setitem__(self, key, new_item):
+        if not isinstance(new_item, NBTTagBase):
+            raise TypeError('Invalid type for NBTTagCompound element: {0}'.format(new_item.__class__.__name__))
+
+        new_item.name = key
+
+        # I want to try and keep the order here... so if a key is being replaced it will have the same position in the
+        # data.
+        data_found = False
+
+        for index, item in enumerate(self.data):
+            if item.name == key:
+                self.data[index] = new_item
+                data_found = True
+                break
+
+        if not data_found:
+            self.data.append(new_item)
 
     def __delitem__(self, key):
-        pass
+        key_found = False
+
+        for index, item in enumerate(self.data):
+            if item.name == key:
+                del self.data[index]
+                key_found = True
+                break
+
+        if not key_found:
+            raise KeyError('Key not found: {0}'.format(key))
 
     def __iter__(self):
         pass

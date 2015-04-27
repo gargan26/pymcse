@@ -19,6 +19,7 @@ import mcschematic
 import tkinter
 import tkinter.filedialog
 
+import nbt
 
 def main():
     tkinter.Tk().withdraw()
@@ -26,6 +27,11 @@ def main():
     filename = tkinter.filedialog.askopenfilename(**open_file_dialog_options)
 
     schematic_data = mcschematic.load_schematic(filename)
+
+    print(schematic_data.width)
+
+    schematic_data.root_tag['Width'] = nbt.NBTTagShort(12)
+    del schematic_data.root_tag['Width']
     return 0
 
 
