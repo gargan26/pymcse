@@ -298,10 +298,10 @@ class NBTTagCompound(NBTTagBase, collections.abc.MutableMapping):
             raise KeyError('Key not found: {0}'.format(key))
 
     def __iter__(self):
-        pass
+        return iter([x.name for x in self.data])
 
     def __len__(self):
-        return self.data.__len__()
+        return len(self.data)
 
 
 class NBTTagIntArray(NBTTagBase):

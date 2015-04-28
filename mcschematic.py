@@ -17,6 +17,7 @@
 import os
 import logging
 import nbt
+import numpy
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +44,53 @@ class MCSchematic(object):
     def __init__(self, root_tag=None):
         if root_tag is not None:
             self.root_tag = root_tag
+            self.width = root_tag['Width']
+            self.height = root_tag['Height']
+            self.length = root_tag['Length']
+            self.materials = root_tag['Materials']
+
+    # Helper function to check for a valid range and raise an overflow error if invalid.
+    def check_range(self, value, lower_bound, upper_bound, var='Data'):
+        if lower_bound <= value <= upper_bound:
+            return value
+        else:
+            raise OverflowError('{0} must be in the range of {1} <= x <= {2}'.format(var, lower_bound, upper_bound))
 
     @property
     def width(self):
-        return self.root_tag['Width']
+        return self._width
+
+    @width.setter
+    def width(self, width):
+        # NBT requires a signed short for Width, but negative or zero widths don't make sense.
+        self._width = self.check_range(width, 1, 32767, 'Width')
+
+    @property
+    def height(self):
+        return self._height
+
+    @height.setter
+    def height(self, height):
+        # Same thing as width, height <= 0 is invalid
+        self._height = self.check_range(height, 1, 32767, 'Height')
+
+    @property
+    def length(self):
+        return self._length
+
+    @length.setter
+    def length(self, length):
+        # Same thing as width, length <= 0 is invalid
+        self._length = self.check_range(length, 1, 32767, 'Length')
+
+    @property
+    def materials(self):
+        return self._materials
+
+    # For now, materials will just be a string...
+    @materials.setter
+    def materials(self, materials):
+        if isinstance(materials, str):
+            self._materials = materials
+        else:
+            raise ValueError('Materials must be a string. (For now)')

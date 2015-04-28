@@ -21,6 +21,7 @@ import tkinter.filedialog
 
 import nbt
 
+
 def main():
     tkinter.Tk().withdraw()
     open_file_dialog_options = {'filetypes': [('Minecraft Schematic Files', '.schematic'), ('All Files', '.*')]}
@@ -28,10 +29,6 @@ def main():
 
     schematic_data = mcschematic.load_schematic(filename)
 
-    print(schematic_data.width)
-
-    schematic_data.root_tag['Width'] = nbt.NBTTagShort(12)
-    del schematic_data.root_tag['Width']
     return 0
 
 
