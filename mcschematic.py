@@ -48,6 +48,7 @@ class MCSchematic(object):
             self.height = root_tag['Height']
             self.length = root_tag['Length']
             self.materials = root_tag['Materials']
+            self.blocks = root_tag['Blocks']
 
     # Helper function to check for a valid range and raise an overflow error if invalid.
     def check_range(self, value, lower_bound, upper_bound, var='Data'):
@@ -94,3 +95,11 @@ class MCSchematic(object):
             self._materials = materials
         else:
             raise ValueError('Materials must be a string. (For now)')
+
+    @property
+    def blocks(self):
+        return self._blocks
+
+    @blocks.setter
+    def blocks(self, blocks):
+        self._blocks = numpy.
